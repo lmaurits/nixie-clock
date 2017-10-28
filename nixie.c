@@ -3,11 +3,59 @@
 #include <avr/io.h>
 #include <util/delay.h>
 
-int main(void) {
+#include "i2cmaster.h"
+
+#define RTC 0xDE
+
+void init_rtc() {
+
+	i2c_start_wait(RTC+I2C_WRITE);
+	i2c_write(0x00);
+	i2c_write(0x80);
+	i2c_stop();
+
+}
+
+uint8_t read_rtc(uint8_t address) {
+	uint8_t result;
+	i2c_start_wait(RTC+I2C_WRITE);
+	i2c_write(address);
+	i2c_rep_start(RTC+I2C_READ);
+	result = i2c_readNak();
+	i2c_stop();
+	return result;
+}
+
+void update_seconds(uint8_t tubes[6]) {
+	uint8_t time;
+	time = read_rtc(0x00);
+	tubes[5] = time & 0x0F;
+	tubes[4] = (time >> 4) & 0x07;
+}
+
+void update_minutes(uint8_t tubes[6]) {
+	uint8_t time;
+	time = read_rtc(0x01);
+	tubes[3] = time & 0x0F;
+	tubes[2] = time >> 4;
+}
+
+void update_hours(uint8_t tubes[6]) {
+	uint8_t time;
+	time = read_rtc(0x02);
+	tubes[1] = time & 0x0F;
+	tubes[0] = (time >> 4) & 0x03;
+}
+
+int main() {
 
 	// Set port directions
 	DDRB = 0b00111111;
 	DDRD = 0b11111110;
+
+	// Start RTC oscillator
+	i2c_init();
+	init_rtc();
 
 	// Counter for "rounds" through all six tubes
 	int8_t rounds = 0;
@@ -51,24 +99,27 @@ int main(void) {
 		_delay_ms(3);
 		// Blank all anodes
 		PORTB = 0x00;
-		// Wait for tube capacitance to discharge...
-		_delay_us(150);
 		// Update values for the next tube
 		index += 1;
 		if(index == 6) {
 			index = 0;
 			rounds += 1;
-			// Incrememt counter every so many-rounds
-			if(rounds == 50) {
-				rounds = 0;
-				tubes[5] += 1;
-				// Carry...
-				if(tubes[5] == 10) { tubes[5] = 0; tubes[4] += 1; }
-				if(tubes[4] == 10) { tubes[4] = 0; tubes[3] += 1; }
-				if(tubes[3] == 10) { tubes[3] = 0; tubes[2] += 1; }
-				if(tubes[2] == 10) { tubes[2] = 0; tubes[1] += 1; }
-				if(tubes[1] == 10) { tubes[1] = 0; tubes[0] += 1; }
-				if(tubes[0] == 10) { tubes[0] = 0; }
+			switch(rounds) {
+				case 5:
+					update_seconds(tubes);
+					break;
+				case 10:
+					update_minutes(tubes);
+					break;
+				case 15:
+					update_hours(tubes);
+					break;
+				case 20:
+					rounds = 0;
+					break;
+				default:
+					_delay_us(50);
+					break;
 			}
 		}
 	}
