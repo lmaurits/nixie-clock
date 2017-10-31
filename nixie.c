@@ -9,35 +9,33 @@
 #define RTC 0xDE
 
 // Array of digits to display on each tube
-volatile uint8_t tubes[6] = {0,2,3,4,5,6};
-
-
-// PORTB values for turning on individual anodes
-const uint8_t anodes[6] = {
-	0b00100000,
-	0b00010000,
-	0b00001000,
-	0b00000100,
-	0b00000010,
-	0b00000001
-};
-
-// PORTD values for turning on individual cathodes
-const uint8_t digits[10] = {
-	0b10111100,
-	0b01111100,
-	0b01111010,
-	0b01110110,
-	0b01101110,
-	0b01011110,
-	0b10011110,
-	0b10101110,
-	0b10110110,
-	0b10111010
-};
+uint8_t tubes[6];
 
 // Periodically fired interrupt (~16 kHz)
 ISR(PCINT1_vect) {
+	// PORTB values for turning on individual anodes
+	const uint8_t anodes[6] = {
+		0b00100000,
+		0b00010000,
+		0b00001000,
+		0b00000100,
+		0b00000010,
+		0b00000001
+	};
+
+	// PORTD values for turning on individual cathodes
+	const uint8_t digits[10] = {
+		0b10111100,
+		0b01111100,
+		0b01111010,
+		0b01110110,
+		0b01101110,
+		0b01011110,
+		0b10011110,
+		0b10101110,
+		0b10110110,
+		0b10111010
+	};
 	// Counts visits to this ISR
 	static uint8_t frame_tick;
 	// Currently active tube
@@ -53,10 +51,8 @@ ISR(PCINT1_vect) {
 			break;
 		case 35:
 			// Update cathode values for the next tube
-			tube_index = tube_index + 1;
-			if(tube_index == 6) {
-				tube_index = 0;
-			}
+			tube_index++;
+			if(tube_index == 6) tube_index = 0;
 			PORTD = digits[tubes[tube_index]];
 			break;
 		case 40:
@@ -130,19 +126,16 @@ int main() {
 	i2c_init();
 	init_rtc();
 
-//	update_seconds(tubes);
-//	update_minutes(tubes);
-//	update_hours(tubes);
-//	tubes[5] = 1;
+	update_seconds(tubes);
+	update_minutes(tubes);
+	update_hours(tubes);
 	setup_interrupts();
 
 	while(1) {
-		tubes[3] ++;
-		_delay_ms(1000);
-//		if(tubes[5] == 10) tubes[5] = 0;
-		//update_seconds(tubes);
-		//update_minutes(tubes);
-//		update_hours(tubes);
+		update_seconds(tubes);
+		update_minutes(tubes);
+		update_hours(tubes);
+		_delay_ms(100);
 	}
 
 	return 0;
