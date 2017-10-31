@@ -64,12 +64,24 @@ ISR(PCINT1_vect) {
 	frame_tick++;
 }
 
-void init_rtc() {
+uint8_t read_rtc(uint8_t address) {
+	uint8_t result;
+	i2c_start_wait(RTC+I2C_WRITE);
+	i2c_write(address);
+	i2c_rep_start(RTC+I2C_READ);
+	result = i2c_readNak();
+	i2c_stop();
+	return result;
+}
 
+void init_rtc() {
+	uint8_t seconds_reg;
 	// Start oscillator
+	seconds_reg = read_rtc(0x00);
+	seconds_reg |= 0b10000000;
 	i2c_start_wait(RTC+I2C_WRITE);
 	i2c_write(0x00);
-	i2c_write(0x80);
+	i2c_write(seconds_reg);
 	i2c_stop();
 
 	// Enable 4kHz squarewave output
@@ -85,15 +97,6 @@ void setup_interrupts() {
 	sei();			// Enable ints
 }
 
-uint8_t read_rtc(uint8_t address) {
-	uint8_t result;
-	i2c_start_wait(RTC+I2C_WRITE);
-	i2c_write(address);
-	i2c_rep_start(RTC+I2C_READ);
-	result = i2c_readNak();
-	i2c_stop();
-	return result;
-}
 
 void update_seconds(uint8_t tubes[6]) {
 	uint8_t time;
