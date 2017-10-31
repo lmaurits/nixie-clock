@@ -66,7 +66,6 @@ ISR(PCINT1_vect) {
 			break;
 	}
 	frame_tick++;
-	reti();
 }
 
 void init_rtc() {
